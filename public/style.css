@@ -216,6 +216,22 @@ cg-container svg.cg-shapes g { animation: arrowIn .35s var(--ease-out); }
 .coord.on-light { color: var(--sq-dark); }
 .coord.on-dark { color: var(--sq-light); }
 
+/* Promotion picker (the .cg-wrap class lets the piece-set CSS draw the pieces) */
+.promo { position: absolute; inset: 0; z-index: 8; background: rgba(18, 17, 15, .5); border-radius: 6px; animation: fadeIn .15s ease; }
+.promo-choice { position: absolute; width: 12.5%; height: 12.5%; padding: 0; border: 0; border-radius: 50%; background: radial-gradient(#ffffff 0%, #d9d6cf 72%); box-shadow: 0 4px 12px rgba(0, 0, 0, .45); animation: popIn .22s var(--ease-spring) both; transition: border-radius .15s, background .15s; }
+.promo-choice:hover { border-radius: 10%; background: radial-gradient(#ffffff 0%, #f0b44c 160%); }
+.promo-choice piece { display: block; width: 100%; height: 100%; background-size: cover; transform: scale(.82); transition: transform .15s; }
+.promo-choice:hover piece { transform: scale(1); }
+
+/* Clickable ideas in the coach's explanation */
+.idea { display: inline; padding: 0 1px; margin: 0; border: 0; background: none; font: inherit; font-weight: 700; cursor: pointer; border-bottom: 2px solid currentColor; border-radius: 0; line-height: inherit; transition: background .15s; }
+.idea:hover { background: rgba(0, 0, 0, .07); border-radius: 3px; }
+.idea-loss, .idea-hang { color: #c2402f; }
+.idea-gain { color: #4f7f22; }
+.idea-mate, .idea-sac { color: #157f6f; }
+.idea-fork, .idea-tactic { color: #b06a08; }
+.idea-move, .idea-line { color: #2f68a8; border-bottom-style: dotted; }
+
 /* Variations in the move list */
 .var-block { display: flex; gap: 6px; align-items: flex-start; margin: 3px 4px 6px 36px; padding: 5px 6px 5px 8px; border-radius: 8px; background: #2b2a27; border-left: 3px solid var(--accent); animation: bubbleIn .2s var(--ease-out); }
 .var-moves { display: flex; flex-wrap: wrap; gap: 2px 3px; flex: 1; min-width: 0; }

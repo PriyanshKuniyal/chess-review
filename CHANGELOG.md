@@ -3,6 +3,19 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.2.0] - 2026-10-24
+
+### Added
+- **Clickable ideas in explanations**: phrases like "loses a knight", "wins a pawn", "checkmate",
+  "fork" or "hanging", and any move the coach mentions, are highlighted. Click one to play out the
+  line behind it on the board, so an idea that only pays off a few moves later is easy to see.
+- **Promotion picker**: when you promote a pawn on the board (exploring or in Retry mistakes),
+  choose queen, knight, rook or bishop instead of always getting a queen.
+
+### Fixed
+- Explanations now lead with a missed checkmate instead of a smaller material detail.
+- Games that start from a set-up position (FEN) no longer show a full army as "captured".
+
 ## [1.1.0] - 2026-10-24
 
 ### Added

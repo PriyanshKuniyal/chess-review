@@ -22,6 +22,8 @@ Stockfish grades every move, and a local AI coach explains them in plain English
 - **A coach that explains why**: a small local language model writes 2–3 sentences for each move
   and a summary of the game. The engine and board code work out the reason first (a fork, a
   hanging piece, a missed mate, material lost), so the model only puts it into words.
+  Key ideas in the text ("loses a knight", "checkmate", moves it mentions) are clickable and play
+  out the line behind them on the board.
 - **Your games from anywhere**: enter a **Chess.com** or **Lichess** username, or paste or drop a
   **PGN** file.
 - **Game report**: accuracy for both players, an estimated game rating, accuracy per phase
@@ -102,6 +104,8 @@ uses the C# compiler that ships with Windows.
 | Try your own move | Drag a piece; your line shows up under the game move |
 | See the engine's line | **Show best** (or **Engine line** on good moves), then <kbd>→</kbd> to step through it |
 | Back to the game | <kbd>Esc</kbd>, **Back to game**, or ✕ on the variation |
+| See an idea play out | Click a highlighted phrase or move in the coach's explanation |
+| Promote a pawn | Move it to the last rank and pick the piece |
 | Practice your mistakes | **Retry mistakes** |
 
 **Analysis depth**: *Fast* (14) takes a few seconds, *Standard* (18) is the default, and *Deep*
