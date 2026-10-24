@@ -56,6 +56,10 @@ jobs:
           Copy-Item -Recurse $items $dir
           Compress-Archive -Path $dir -DestinationPath "dist/Chess-Review-$env:VERSION-windows-x64.zip"
 
+      - name: Test the packaged app
+        shell: pwsh
+        run: ./.github/scripts/test-package.ps1 "dist/Chess Review"
+
       - name: Write release notes
         shell: pwsh
         run: node scripts/release-notes.mjs $env:VERSION > dist/notes.md
