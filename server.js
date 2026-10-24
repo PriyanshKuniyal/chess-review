@@ -11,6 +11,8 @@ import { loadBook } from './lib/openings.js';
 import { reviewGame, checkMove, analyseMove, REVIEW_VERSION } from './lib/analysis.js';
 import * as coach from './lib/coach.js';
 import { checkForUpdate, repoSlug } from './lib/update.js';
+import { ProfileStore, moveTags } from './lib/profile.js';
+import { coachMove, coachHint } from './lib/coachplay.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PKG = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf8'));
@@ -26,6 +28,7 @@ if (!sfPath) {
 const engine = new EnginePool(sfPath);
 await engine.start();
 const book = loadBook(ROOT);
+const profiles = new ProfileStore(engine, book);
 console.log(`Engine: ${engine.name} (${engine.size} x ${engine.threads / engine.size} threads)  Book positions: ${book.size}`);
 
 const STATIC = {
@@ -181,6 +184,36 @@ const routes = {
     res.end();
   },
 
+  // --- Player profile (learned in the background) ---
+  'POST /api/profile/sync': async (req, res) => {
+    const { source, username } = await readBody(req);
+    if (!['chesscom', 'lichess'].includes(source) || !/^[\w-]{2,40}$/.test(username || '')) return json(res, 400, { error: 'Bad profile' });
+    profiles.sync(source, username); // runs in the background
+    json(res, 200, profiles.summary(source, username));
+  },
+
+  'GET /api/profile': async (req, res, url) => {
+    const active = profiles.active;
+    const source = url.searchParams.get('source') || active?.source;
+    const username = url.searchParams.get('username') || active?.username;
+    if (!source || !username) return json(res, 200, null);
+    json(res, 200, profiles.summary(source, username));
+  },
+
+  // --- Playing the coach ---
+  'POST /api/coach/move': async (req, res) => {
+    const { fen, moves, elo, focus, sinceTactic, profile } = await readBody(req);
+    if (!fen) return json(res, 400, { error: 'Missing position' });
+    const summary = profile?.source && profile?.username ? profiles.summary(profile.source, profile.username) : null;
+    json(res, 200, await coachMove(engine, { fen, moves: Array.isArray(moves) ? moves : [], elo: +elo || 1200, focus, sinceTactic: +sinceTactic || 0, profile: summary?.games ? summary : null }));
+  },
+
+  'POST /api/coach/hint': async (req, res) => {
+    const { fen } = await readBody(req);
+    if (!fen) return json(res, 400, { error: 'Missing position' });
+    json(res, 200, await coachHint(engine, fen));
+  },
+
   // A move played on the board during review: classify it like a game move.
   'POST /api/analyze-move': async (req, res) => {
     const { fen, uci, prevLabel, prevLoss } = await readBody(req);
@@ -188,7 +221,9 @@ const routes = {
     const key = hash(`${fen}|${uci}|${prevLabel || ''}`);
     if (!moveCache.has(key)) {
       if (moveCache.size > 2000) moveCache.clear();
-      moveCache.set(key, analyseMove(engine, fen, uci, { depth: 16, book, prevLabel, prevLoss }).catch((e) => { moveCache.delete(key); throw e; }));
+      moveCache.set(key, analyseMove(engine, fen, uci, { depth: 16, book, prevLabel, prevLoss })
+        .then((r) => { if (r.move) r.move.tags = moveTags(r.move); return r; })
+        .catch((e) => { moveCache.delete(key); throw e; }));
     }
     json(res, 200, await moveCache.get(key));
   },
@@ -227,4 +262,9 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, '127.0.0.1', () => console.log(`Chess Review running at http://localhost:${PORT}`));
 coach.warmup();
+// Pick up learning where it left off: only games played since the last run get analysed.
+setTimeout(() => {
+  const a = profiles.active;
+  if (a) profiles.sync(a.source, a.username);
+}, 4000);
 process.on('SIGINT', () => { engine.stop(); process.exit(0); });

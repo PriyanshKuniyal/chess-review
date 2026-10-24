@@ -29,6 +29,8 @@ Stockfish grades every move, and a local AI coach explains them in plain English
 - **Game report**: accuracy for both players, an estimated game rating, accuracy per phase
   (opening, middlegame, endgame) and a count of each move type.
 - **Retry mistakes**: replay your inaccuracies, mistakes and blunders as puzzles, with hints.
+- **Play the coach**: a sparring partner that learns your weak spots from your recent games and
+  plays to train them, explaining every move as you go ([details](#play-the-coach)).
 - **Analysis board**: drag any piece to try your own ideas. Each move you play is graded and
   explained, and "Show best" / "Engine line" play the engine's lines so you can step through them.
 - **Feels like the real thing**: animated pieces, wooden move and capture sounds, an eval bar,
@@ -111,6 +113,44 @@ uses the C# compiler that ships with Windows.
 **Analysis depth**: *Fast* (14) takes a few seconds, *Standard* (18) is the default, and *Deep*
 (22) is slower but more precise. Reviews are cached in `cache/`, so reopening a game is instant.
 
+## Play the coach
+
+Switch to **Play the coach** in the top bar for a practice game against a coach that adapts to you.
+
+<table>
+  <tr>
+    <td><img src="docs/screenshots/play-setup.png" alt="Play the coach setup: learned weaknesses and settings"></td>
+    <td><img src="docs/screenshots/play.png" alt="A game against the coach with move feedback"></td>
+  </tr>
+</table>
+
+**It learns from your games.** Enter your Chess.com or Lichess username (searching your games in
+Review does this too) and the coach analyses your recent games in the background, up to 60 from the
+last 6 months, a few seconds each. It works out:
+
+- your weak spots, from your actual mistakes: leaving pieces undefended, walking into tactics,
+  missing tactics, missing or overlooking mates, and whether your errors cluster in the opening,
+  middlegame or endgame,
+- the openings that cost you points (by color),
+- your playing strength.
+
+Recent games count more: a game from 30 days ago weighs half as much as today's, one from 60 days a
+quarter. Everything is saved on your PC (`%APPDATA%\ChessReview\profiles` on Windows), and each time
+the app starts it only analyses games played since last time.
+
+**It plays to train you.** The coach plays a little above your level and, depending on your weak
+spots (or the focus you pick):
+
+- steers into **openings** you've been losing in, following the line from your own games,
+- sets up **tactics** for you to find (verified by Stockfish) and tells you there's one to look for,
+- puts **pressure** on loose pieces if you tend to leave them hanging, and warns you about threats,
+- **trades down** into endgames if that's where you go wrong.
+
+**It explains as you play.** Every move you make is graded (Best, Mistake, Blunder…) with a short
+explanation and clickable ideas, plus a note when it's a pattern from your games. Hints come in three
+steps (the coach's threat, which piece to move, the move), you can take moves back, and the game ends
+with a summary. **Review this game** opens the full review. Coach help can be set to Lots, Some or None.
+
 ## How moves are classified
 
 Each position is analyzed by Stockfish, and the evaluation is turned into a win probability
@@ -143,6 +183,8 @@ All optional, set as environment variables:
 | `COACH_MODEL` | `qwen3:4b-instruct` | Any Ollama chat model, e.g. `qwen3:8b` for better writing |
 | `OLLAMA_HOST` | `http://127.0.0.1:11434` | Where Ollama is running |
 | `CHESS_REVIEW_NO_UPDATE_CHECK` | unset | Set to `1` to skip the check for new releases |
+| `CHESS_REVIEW_DATA` | `%APPDATA%\ChessReview` | Where player profiles are stored |
+| `CHESS_REVIEW_PROFILE_GAMES` | `60` | How many recent games the coach learns from |
 
 ## Troubleshooting
 
@@ -164,7 +206,9 @@ lib/engine.js          Stockfish UCI wrapper and engine pool
 lib/coach.js           Ollama prompts and model download
 lib/chesscom.js        Chess.com public API
 lib/lichess.js         Lichess public API
-public/                The web UI (board, review panel, sounds)
+lib/profile.js         Player profiles: background learning, weak spots, time weighting
+lib/coachplay.js       The coach as an opponent: strength and practice steering
+public/                The web UI: app.js (review), play.js (play the coach), shared.js, sounds
 launcher/              Windows launcher (C#) with splash screen
 scripts/               Setup, smoke test, screenshots, release notes
 data/                  Opening book (lichess-org/chess-openings, CC0)

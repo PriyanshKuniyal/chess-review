@@ -3,6 +3,23 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.3.0] - 2026-10-24
+
+### Added
+- **Play the coach**: a sparring game against a coach that adapts to you.
+  - Enter your Chess.com or Lichess username (or just search your games in Review) and the coach
+    learns from your recent games in the background: your weak spots (pieces left hanging, tactics
+    missed or walked into, missed mates, opening/middlegame/endgame errors), the openings that cost
+    you points, and your strength.
+  - Learning is saved on your PC and picks up where it left off: each launch only analyses games
+    played since last time. Recent games count more: a game from 30 days ago weighs half as much.
+  - The coach plays a little above your level, steers into openings you've been losing in, sets up
+    tactics for you to find if you tend to miss them, pressures loose pieces if you leave them
+    hanging, and trades down if endgames are your weak spot. Or pick a focus yourself.
+  - Every move you play is graded and explained (with clickable ideas), with "this is a pattern
+    from your games" notes, threat warnings, three-step hints, take-backs, and an end-of-game
+    summary. One click sends the game to the full review.
+
 ## [1.2.0] - 2026-10-24
 
 ### Added
