@@ -1,0 +1,19 @@
+# Dependencies and downloaded binaries (fetched by `npm install` / `npm run setup`)
+node_modules/
+engine/*
+!engine/README.md
+runtime/
+
+# Build output
+dist/
+Chess Review.exe
+
+# Local data
+cache/
+*.log
+
+# Editor / tooling
+.claude/
+.vscode/
+.DS_Store
+Thumbs.db

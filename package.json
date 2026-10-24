@@ -1,0 +1,40 @@
+{
+  "name": "chess-review",
+  "version": "1.0.0",
+  "description": "Chess.com-style game review that runs on your own PC: Stockfish grades every move and a local AI coach explains it.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node scripts/setup.mjs",
+    "test": "node scripts/smoke-test.mjs",
+    "build:launcher": "powershell -ExecutionPolicy Bypass -File launcher/build.ps1",
+    "screenshots": "node scripts/screenshots.mjs"
+  },
+  "keywords": [
+    "chess",
+    "game-review",
+    "stockfish",
+    "chess-analysis",
+    "lichess",
+    "chess.com",
+    "ollama",
+    "llm"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/PriyanshKuniyal/chess-review.git"
+  },
+  "homepage": "https://github.com/PriyanshKuniyal/chess-review#readme",
+  "bugs": {
+    "url": "https://github.com/PriyanshKuniyal/chess-review/issues"
+  },
+  "license": "GPL-3.0-or-later",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "chess.js": "^1.4.0",
+    "chessground": "^9.2.1"
+  }
+}

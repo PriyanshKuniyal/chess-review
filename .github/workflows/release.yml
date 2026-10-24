@@ -1,0 +1,65 @@
+# Builds the Windows download and publishes it as a GitHub Release.
+# Trigger: push a tag like v1.2.0 (git tag v1.2.0 && git push origin v1.2.0).
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Check the tag matches package.json
+        shell: pwsh
+        run: |
+          $pkg = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ("v$pkg" -ne $env:VERSION) { throw "Tag $env:VERSION does not match package.json version $pkg" }
+
+      - name: Install dependencies
+        run: npm ci --omit=dev
+
+      - name: Download Stockfish
+        run: node scripts/setup.mjs --skip-ollama
+
+      - name: Build the launcher
+        shell: pwsh
+        run: ./launcher/build.ps1
+
+      - name: Bundle the Node.js runtime
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force runtime | Out-Null
+          Copy-Item (Get-Command node).Source runtime/node.exe
+          $v = node -p "process.version"
+          Invoke-WebRequest "https://raw.githubusercontent.com/nodejs/node/$v/LICENSE" -OutFile runtime/LICENSE.txt
+
+      - name: Assemble the zip
+        shell: pwsh
+        run: |
+          $dir = "dist/Chess Review"
+          New-Item -ItemType Directory -Force $dir | Out-Null
+          $items = 'Chess Review.exe', 'server.js', 'package.json', 'lib', 'public', 'data', 'assets', 'scripts',
+                   'node_modules', 'engine', 'runtime', 'README.md', 'LICENSE', 'THIRD_PARTY_NOTICES.md', 'CHANGELOG.md'
+          Copy-Item -Recurse $items $dir
+          Compress-Archive -Path $dir -DestinationPath "dist/Chess-Review-$env:VERSION-windows-x64.zip"
+
+      - name: Write release notes
+        shell: pwsh
+        run: node scripts/release-notes.mjs $env:VERSION > dist/notes.md
+
+      - name: Publish the release
+        shell: pwsh
+        run: gh release create $env:VERSION "dist/Chess-Review-$env:VERSION-windows-x64.zip" --title "Chess Review $env:VERSION" --notes-file dist/notes.md
