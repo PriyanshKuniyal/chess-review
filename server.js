@@ -200,6 +200,21 @@ const routes = {
     json(res, 200, profiles.summary(source, username));
   },
 
+  // --- Puzzles from the player's own mistakes ---
+  'GET /api/puzzles': async (req, res, url) => {
+    const active = profiles.active;
+    const source = url.searchParams.get('source') || active?.source;
+    const username = url.searchParams.get('username') || active?.username;
+    if (!source || !username) return json(res, 200, { puzzles: [], stats: null, profile: null });
+    json(res, 200, { ...profiles.puzzles(source, username), profile: { source, username, sync: profiles.status(profiles.key(source, username)).state } });
+  },
+
+  'POST /api/puzzles/result': async (req, res) => {
+    const { source, username, id, solved, firstTry, hints } = await readBody(req);
+    if (!source || !username || !/^[0-9a-f]{12}$/.test(id || '')) return json(res, 400, { error: 'Bad puzzle result' });
+    json(res, 200, profiles.recordPuzzle(source, username, id, { solved: !!solved, firstTry: !!firstTry, hints: +hints || 0 }) || {});
+  },
+
   // --- Playing the coach ---
   'POST /api/coach/move': async (req, res) => {
     const { fen, moves, elo, focus, sinceTactic, profile } = await readBody(req);

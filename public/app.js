@@ -406,7 +406,7 @@ function openReview(review) {
   state.retry = null;
   state.variation = null;
   state.orientation = review.userColor === 'b' ? 'black' : 'white';
-  for (const v of ['picker', 'play-setup', 'play']) $(v).classList.add('hidden');
+  for (const v of ['picker', 'play-setup', 'play', 'puzzles']) $(v).classList.add('hidden');
   $('review').classList.remove('hidden');
   setReviewMode();
   state.lastView = 'review';
@@ -1203,7 +1203,7 @@ function setReviewMode() {
 // "Review" in the top bar: back to the open review if there is one, else the game list.
 window.addEventListener('cr:show-review', () => {
   if (state.review && state.lastView === 'review') {
-    for (const v of ['picker', 'play-setup', 'play']) $(v).classList.add('hidden');
+    for (const v of ['picker', 'play-setup', 'play', 'puzzles']) $(v).classList.add('hidden');
     $('review').classList.remove('hidden');
     setReviewMode();
     const h = state.review.headers;
@@ -1228,7 +1228,7 @@ function showPicker() {
   stopPlay();
   state.abort?.abort();
   $('crumb').innerHTML = '';
-  for (const v of ['review', 'play-setup', 'play']) $(v).classList.add('hidden');
+  for (const v of ['review', 'play-setup', 'play', 'puzzles']) $(v).classList.add('hidden');
   $('picker').classList.remove('hidden');
   setReviewMode();
   state.lastView = 'picker';

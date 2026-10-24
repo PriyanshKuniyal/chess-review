@@ -18,6 +18,7 @@
     <nav class="modes" id="modes">
       <button data-mode="review" class="on">Review</button>
       <button data-mode="play">Play the coach</button>
+      <button data-mode="puzzles">Puzzles</button>
     </nav>
     <div class="crumb" id="crumb"></div>
     <div class="top-actions">
@@ -185,6 +186,45 @@
     </aside>
   </main>
 
+  <!-- Puzzles from your own mistakes -->
+  <main id="puzzles" class="view hidden">
+    <section class="stage" id="pz-stage">
+      <div class="board-shell">
+        <div class="player-bar" id="pz-bar-top"></div>
+        <div class="board-row">
+          <div class="eval-bar" style="visibility:hidden"></div>
+          <div class="board-wrap" id="pz-board-wrap">
+            <div id="pz-board"></div>
+            <div id="pz-coords" class="coords-layer"></div>
+            <div id="pz-fx" class="fx-layer"></div>
+            <div id="pz-promo" class="promo cg-wrap hidden"></div>
+          </div>
+        </div>
+        <div class="player-bar" id="pz-bar-bottom"></div>
+      </div>
+    </section>
+    <aside class="panel">
+      <div class="panel-top">
+        <div class="panel-title"><svg viewBox="0 0 24 24"><path d="M20.5 11H19V7a2 2 0 00-2-2h-4V3.5a2.5 2.5 0 00-5 0V5H4a2 2 0 00-2 2v3.8h1.5a2.7 2.7 0 010 5.4H2V20a2 2 0 002 2h3.8v-1.5a2.7 2.7 0 015.4 0V22H17a2 2 0 002-2v-4h1.5a2.5 2.5 0 000-5z"/></svg> Your puzzles</div>
+        <span class="muted small" id="pz-count"></span>
+      </div>
+      <div class="coach">
+        <div class="coach-avatar"><img src="/icon.png" alt=""></div>
+        <div class="bubble" id="pz-bubble"></div>
+      </div>
+      <div class="pz-progress" id="pz-progress"></div>
+      <div class="panel-body" id="pz-body"></div>
+      <div class="panel-foot">
+        <div class="play-actions">
+          <button class="btn" id="pz-hint" title="Hint (H)"><svg viewBox="0 0 24 24"><path d="M9 21h6v-1H9zm3-19a7 7 0 00-4 12.7V17a1 1 0 001 1h6a1 1 0 001-1v-2.3A7 7 0 0012 2z"/></svg><span>Hint</span></button>
+          <button class="btn" id="pz-solution"><span>Show solution</span></button>
+          <button class="btn" id="pz-skip"><span>Skip</span></button>
+        </div>
+        <div class="play-actions"><button class="btn primary" id="pz-next">Next puzzle</button></div>
+      </div>
+    </aside>
+  </main>
+
   <!-- Review -->
   <main id="review" class="view hidden">
     <section class="stage" id="stage">
@@ -259,5 +299,6 @@
 
   <script type="module" src="/app.js"></script>
   <script type="module" src="/play.js"></script>
+  <script type="module" src="/puzzles.js"></script>
 </body>
 </html>

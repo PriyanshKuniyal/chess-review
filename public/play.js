@@ -36,7 +36,7 @@ function setModeButtons(mode) {
 }
 
 function showPlayView(id) {
-  for (const v of ['picker', 'review', 'play-setup', 'play']) $(v).classList.toggle('hidden', v !== id);
+  for (const v of ['picker', 'review', 'play-setup', 'play', 'puzzles']) $(v).classList.toggle('hidden', v !== id);
   $('crumb').textContent = '';
   setModeButtons('play');
   if (id === 'play') fitBoard();
@@ -51,12 +51,12 @@ $('modes').addEventListener('click', (e) => {
   const b = e.target.closest('button');
   if (!b) return;
   if (b.dataset.mode === 'play') openPlay();
-  else {
+  else if (b.dataset.mode === 'review') {
     stopPolling();
     $('play-setup').classList.add('hidden');
     $('play').classList.add('hidden');
     window.dispatchEvent(new CustomEvent('cr:show-review'));
-  }
+  } else stopPolling();
 });
 
 // ---------- Profile (what the coach has learned) ----------

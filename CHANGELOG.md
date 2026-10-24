@@ -3,6 +3,20 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.0] - 2026-10-24
+
+### Added
+- **Puzzles from your own mistakes** (new Puzzles tab): every position where you made a mistake,
+  blunder or miss in your recent games becomes a puzzle: find a better move than the one you
+  played. Answers are checked by Stockfish, so any move about as good as the best one counts.
+  - Themed by what went wrong: find the tactic, spot the danger, keep your pieces safe, stop the
+    mate, find the checkmate.
+  - After each puzzle the coach explains why the right move works and why your game move didn't,
+    with clickable lines. Hints, show solution and skip are there when you're stuck.
+  - Spaced repetition, saved in your profile: puzzles you solve first try come back after 1, 3, 7,
+    14 and 30 days; missed ones come back the same day. Recent games and your biggest weak spots
+    come first.
+
 ## [1.3.0] - 2026-10-24
 
 ### Added

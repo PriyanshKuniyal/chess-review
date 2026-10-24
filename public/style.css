@@ -174,7 +174,7 @@ svg { display: block; }
 .board-wrap { position: relative; width: var(--board); height: var(--board); border-radius: 6px; box-shadow: 0 10px 30px rgba(0, 0, 0, .35); }
 .board-wrap.shake { animation: shake .42s cubic-bezier(.36, .07, .19, .97); }
 @keyframes shake { 15%, 85% { transform: translateX(-3px); } 30%, 70% { transform: translateX(6px); } 45%, 55% { transform: translateX(-7px); } }
-#board, #pboard { width: 100%; height: 100%; }
+#board, #pboard, #pz-board { width: 100%; height: 100%; }
 
 /* Player bars */
 .player-bar { height: 42px; display: flex; align-items: center; gap: 10px; padding-left: 34px; }
@@ -466,7 +466,7 @@ cg-container svg.cg-shapes g { animation: arrowIn .35s var(--ease-out); }
 .setup-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
 
 /* ---------- Play the coach: game ---------- */
-#play { display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 31vw, 460px); height: calc(100vh - 56px); }
+#play, #puzzles { display: grid; grid-template-columns: minmax(0, 1fr) clamp(380px, 31vw, 460px); height: calc(100vh - 56px); }
 .avatar-img { width: 100%; height: 100%; border-radius: 7px; display: block; }
 .avatar:has(.avatar-img) { background: none; border: 0; padding: 0; overflow: hidden; }
 .turn-dot { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--muted); padding: 5px 10px; border-radius: 6px; background: var(--surface-2); }
@@ -493,7 +493,24 @@ cg-container svg.cg-shapes g { animation: arrowIn .35s var(--ease-out); }
 .play-actions .btn.on { background: #46523a; border-color: #5f7a44; color: #d7efbd; }
 .game-over { animation: popIn .3s var(--ease-spring); }
 @media (max-width: 900px) {
-  #play { grid-template-columns: 1fr; height: auto; }
+  #play, #puzzles { grid-template-columns: 1fr; height: auto; }
   .setup-grid { grid-template-columns: 1fr; }
   .modes button { padding: 5px 8px; }
 }
+
+/* ---------- Puzzles ---------- */
+.pz-progress { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 14px 6px; }
+.pz-progress:empty { display: none; }
+.pz-dot { width: 14px; height: 14px; border-radius: 4px; background: var(--surface-3); border: 1px solid var(--border); transition: background .2s, transform .2s; }
+.pz-dot.cur { border-color: var(--text); transform: scale(1.15); }
+.pz-dot.first { background: var(--c-best); border-color: transparent; }
+.pz-dot.later { background: var(--c-inaccuracy); border-color: transparent; }
+.pz-dot.failed { background: var(--c-blunder); border-color: transparent; }
+.pz-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pz-stats div { display: flex; flex-direction: column; align-items: center; padding: 10px 6px; border-radius: 10px; background: var(--surface-2); }
+.pz-stats b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.pz-stats span { font-size: 12px; color: var(--muted); }
+.pz-h { margin: 16px 0 6px; font-size: 12.5px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); }
+.pz-theme { display: flex; justify-content: space-between; padding: 6px 2px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.pz-note { margin-top: 12px; }
+.pb-sub { font-size: 12.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

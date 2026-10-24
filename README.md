@@ -31,6 +31,8 @@ Stockfish grades every move, and a local AI coach explains them in plain English
 - **Retry mistakes**: replay your inaccuracies, mistakes and blunders as puzzles, with hints.
 - **Play the coach**: a sparring partner that learns your weak spots from your recent games and
   plays to train them, explaining every move as you go ([details](#play-the-coach)).
+- **Puzzles from your own mistakes**: every position where you went wrong in your recent games
+  becomes a puzzle, with spaced repetition so they stick ([details](#puzzles-from-your-own-mistakes)).
 - **Analysis board**: drag any piece to try your own ideas. Each move you play is graded and
   explained, and "Show best" / "Engine line" play the engine's lines so you can step through them.
 - **Feels like the real thing**: animated pieces, wooden move and capture sounds, an eval bar,
@@ -151,6 +153,17 @@ explanation and clickable ideas, plus a note when it's a pattern from your games
 steps (the coach's threat, which piece to move, the move), you can take moves back, and the game ends
 with a summary. **Review this game** opens the full review. Coach help can be set to Lots, Some or None.
 
+## Puzzles from your own mistakes
+
+The **Puzzles** tab turns the positions where you made a mistake, blunder or miss in your recent
+games (from the same profile the coach learns) into puzzles: find a better move than the one you
+played. They're themed by what went wrong (find the tactic, spot the danger, keep your pieces safe,
+stop the mate, find the checkmate), and any move about as good as Stockfish's best counts.
+
+After each one the coach explains why the right move works and why your game move didn't, with
+clickable lines. Puzzles you solve on the first try come back after 1, 3, 7, 14 and 30 days; ones
+you miss come back the same day. Recent games and your biggest weak spots come first.
+
 ## How moves are classified
 
 Each position is analyzed by Stockfish, and the evaluation is turned into a win probability
@@ -208,7 +221,7 @@ lib/chesscom.js        Chess.com public API
 lib/lichess.js         Lichess public API
 lib/profile.js         Player profiles: background learning, weak spots, time weighting
 lib/coachplay.js       The coach as an opponent: strength and practice steering
-public/                The web UI: app.js (review), play.js (play the coach), shared.js, sounds
+public/                The web UI: app.js (review), play.js (play the coach), puzzles.js, shared.js, sounds
 launcher/              Windows launcher (C#) with splash screen
 scripts/               Setup, smoke test, screenshots, release notes
 data/                  Opening book (lichess-org/chess-openings, CC0)
