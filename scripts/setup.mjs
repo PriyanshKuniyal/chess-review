@@ -58,8 +58,11 @@ async function setupStockfish() {
   const archive = path.join(dir, asset);
   console.log(`Downloading Stockfish (${STOCKFISH_TAG}, ${asset})…`);
   await download(`https://github.com/official-stockfish/Stockfish/releases/download/${STOCKFISH_TAG}/${asset}`, archive);
-  // tar ships with Windows 10+, macOS and Linux, and reads both .zip and .tar.gz.
-  execFileSync('tar', ['-xf', archive, '-C', dir], { stdio: 'inherit' });
+  // tar ships with Windows 10+, macOS and Linux, and reads both .zip and .tar.gz. On Windows use the
+  // system one explicitly: Git's GNU tar can come first on PATH and it can't read .zip.
+  const winTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe');
+  const tar = process.platform === 'win32' && fs.existsSync(winTar) ? winTar : 'tar';
+  execFileSync(tar, ['-xf', archive, '-C', dir], { stdio: 'inherit' });
   fs.rmSync(archive);
   const exe = findStockfish(ROOT);
   if (!exe) throw new Error('Stockfish was downloaded but the executable was not found in ./engine');
