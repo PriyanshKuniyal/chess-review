@@ -8,7 +8,7 @@ import { EnginePool, findStockfish } from './lib/engine.js';
 import { listArchives, listGames } from './lib/chesscom.js';
 import { listLichessGames } from './lib/lichess.js';
 import { loadBook } from './lib/openings.js';
-import { reviewGame, checkMove, REVIEW_VERSION } from './lib/analysis.js';
+import { reviewGame, checkMove, analyseMove, REVIEW_VERSION } from './lib/analysis.js';
 import * as coach from './lib/coach.js';
 import { checkForUpdate, repoSlug } from './lib/update.js';
 
@@ -41,6 +41,7 @@ const PUBLIC = path.join(ROOT, 'public');
 
 const hash = (s) => crypto.createHash('sha1').update(s).digest('hex').slice(0, 16);
 const explainCache = new Map();
+const moveCache = new Map();
 
 // When started by the desktop launcher, exit shortly after the last app window closes.
 // Each open page holds a /api/presence event stream, which drops the moment the window goes.
@@ -178,6 +179,18 @@ const routes = {
       if (!ctrl.signal.aborted) res.write(JSON.stringify({ error: e.message }) + '\n');
     }
     res.end();
+  },
+
+  // A move played on the board during review: classify it like a game move.
+  'POST /api/analyze-move': async (req, res) => {
+    const { fen, uci, prevLabel, prevLoss } = await readBody(req);
+    if (!fen || !/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci || '')) return json(res, 400, { error: 'Bad move' });
+    const key = hash(`${fen}|${uci}|${prevLabel || ''}`);
+    if (!moveCache.has(key)) {
+      if (moveCache.size > 2000) moveCache.clear();
+      moveCache.set(key, analyseMove(engine, fen, uci, { depth: 16, book, prevLabel, prevLoss }).catch((e) => { moveCache.delete(key); throw e; }));
+    }
+    json(res, 200, await moveCache.get(key));
   },
 
   'POST /api/check-move': async (req, res) => {

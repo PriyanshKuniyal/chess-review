@@ -27,6 +27,8 @@ Stockfish grades every move, and a local AI coach explains them in plain English
 - **Game report**: accuracy for both players, an estimated game rating, accuracy per phase
   (opening, middlegame, endgame) and a count of each move type.
 - **Retry mistakes**: replay your inaccuracies, mistakes and blunders as puzzles, with hints.
+- **Analysis board**: drag any piece to try your own ideas. Each move you play is graded and
+  explained, and "Show best" / "Engine line" play the engine's lines so you can step through them.
 - **Feels like the real thing**: animated pieces, wooden move and capture sounds, an eval bar,
   a clickable eval graph, best-move arrows, "Show best", autoplay and keyboard shortcuts.
 - **Private and free**: no account and no cloud. The only network calls fetch your public games
@@ -97,7 +99,9 @@ uses the C# compiler that ships with Windows.
 | Autoplay | <kbd>Space</kbd> or the green play button |
 | Flip the board | <kbd>F</kbd> |
 | Sound on/off | <kbd>M</kbd> or the speaker button |
-| See the engine's move | **Show best** in the coach bubble |
+| Try your own move | Drag a piece; your line shows up under the game move |
+| See the engine's line | **Show best** (or **Engine line** on good moves), then <kbd>→</kbd> to step through it |
+| Back to the game | <kbd>Esc</kbd>, **Back to game**, or ✕ on the variation |
 | Practice your mistakes | **Retry mistakes** |
 
 **Analysis depth**: *Fast* (14) takes a few seconds, *Standard* (18) is the default, and *Deep*

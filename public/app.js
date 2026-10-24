@@ -38,7 +38,7 @@ const state = {
   source: 'chesscom', lichessNext: null,
   user: '', games: [], depth: 18, timeFilter: '', review: null, ply: -1, orientation: 'white',
   explained: new Map(), abort: null, explainTimer: null, retry: null, coachModel: '', coachOk: false,
-  tab: 'report', playing: null, preview: false, evalShown: 0,
+  tab: 'report', playing: null, evalShown: 0, variation: null,
 };
 
 // ---------- Status, sound toggle, heartbeat ----------
@@ -423,7 +423,7 @@ function fitBoard() {
   document.documentElement.style.setProperty('--board', `${size}px`);
   if (cg) {
     cg.redrawAll();
-    renderFx(state.retry ? null : currentMove(), { still: true });
+    renderFx(state.retry ? null : currentNode(), { still: true });
   }
 }
 new ResizeObserver(() => fitBoard()).observe($('stage'));
@@ -434,7 +434,7 @@ function openReview(review) {
   state.review = review;
   state.ply = -1;
   state.retry = null;
-  state.preview = false;
+  state.variation = null;
   state.orientation = review.userColor === 'b' ? 'black' : 'white';
   $('picker').classList.add('hidden');
   $('review').classList.remove('hidden');
@@ -445,7 +445,7 @@ function openReview(review) {
   fitBoard();
   if (!cg) {
     cg = Chessground($('board'), {
-      coordinates: true,
+      coordinates: false, // drawn by renderCoords() inside the edge squares
       animation: { enabled: true, duration: 220 },
       highlight: { lastMove: false, check: true },
       movable: { free: false, color: undefined },
@@ -472,31 +472,195 @@ function currentMove() {
   return state.ply >= 0 ? state.review.moves[state.ply] : null;
 }
 
+// ---------- Variations: moves you try on the board ----------
+// state.variation = { from, moves, idx }: `from` is the game ply it branches after (-1 = start),
+// `idx` is the variation move on the board (-1 = back at the branch point, on the game line).
+const inVar = () => !!(state.variation && state.variation.idx >= 0);
+const varMove = () => (inVar() ? state.variation.moves[state.variation.idx] : null);
+
+// What's on the board: a game move, a variation move (merged with its analysis once it's back),
+// or null at the start position.
+function currentNode() {
+  const vm = varMove();
+  if (vm) return vm.analysis ? { ...vm.analysis.move, isVar: true, vm } : { ...vm, label: null, pending: !vm.error, isVar: true, vm };
+  return currentMove();
+}
+
+function currentFen() {
+  const vm = varMove();
+  return vm ? vm.fenAfter : state.review.positions[state.ply + 1].fen;
+}
+
+function makeVarMove(mv) {
+  return {
+    san: mv.san, uci: mv.from + mv.to + (mv.promotion || ''), from: mv.from, to: mv.to, color: mv.color,
+    captured: mv.captured || null, fenBefore: mv.before, fenAfter: mv.after, analysis: null, pending: null, error: false,
+  };
+}
+
+// Ask the engine about a variation move (cached server-side). Re-renders when the answer arrives.
+function analyseVar(vm) {
+  if (vm.analysis || vm.pending) return vm.pending;
+  const v = state.variation;
+  const i = v.moves.indexOf(vm);
+  const prev = i > 0 ? v.moves[i - 1].analysis?.move : v.from >= 0 ? state.review.moves[v.from] : null;
+  vm.error = false;
+  vm.pending = api('/api/analyze-move', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fen: vm.fenBefore, uci: vm.uci, prevLabel: prev?.label, prevLoss: prev?.loss }),
+  }).then((res) => {
+    vm.analysis = res;
+    if (!state.variation?.moves.includes(vm)) return;
+    renderMoves();
+    updateMoveHighlight();
+    if (varMove() === vm) {
+      render();
+      if (res.move.label === 'brilliant') sound.play('brilliant');
+    }
+  }).catch(() => {
+    vm.pending = null;
+    vm.error = true;
+    if (varMove() === vm) render();
+  });
+  return vm.pending;
+}
+
+// A piece was moved on the board during review.
+function onBoardMove(orig, dest) {
+  if (state.retry || !state.review) return;
+  const chess = new Chess(currentFen());
+  const piece = chess.get(orig);
+  const promotion = piece?.type === 'p' && (dest[1] === '8' || dest[1] === '1') ? 'q' : undefined;
+  let mv;
+  try { mv = chess.move({ from: orig, to: dest, promotion }); } catch { render({ still: true }); return; }
+  stopPlay();
+  sound.playMove(mv.san, mv.captured);
+  const uci = orig + dest + (promotion || '');
+  if (!inVar()) {
+    const next = state.review.moves[state.ply + 1];
+    if (next && next.uci === uci) { go(state.ply + 1); return; } // that's the game move
+    state.variation = { from: state.ply, moves: [], idx: -1 };
+  }
+  const v = state.variation;
+  if (v.moves[v.idx + 1]?.uci === uci) v.idx++;
+  else {
+    v.moves = v.moves.slice(0, v.idx + 1);
+    v.moves.push(makeVarMove(mv));
+    v.idx = v.moves.length - 1;
+  }
+  if (state.tab !== 'moves') setTab('moves');
+  renderMoves();
+  render({ still: true });
+  analyseVar(v.moves[v.idx]);
+}
+
+// Replace everything after `prefix` with an engine line from `fenBefore` and step onto its first move.
+function playLineFrom(from, prefix, fenBefore, ucis) {
+  stopPlay();
+  const c = new Chess(fenBefore);
+  const moves = prefix.slice();
+  for (const u of ucis.slice(0, 12)) {
+    try { moves.push(makeVarMove(c.move({ from: u.slice(0, 2), to: u.slice(2, 4), promotion: u[4] }))); } catch { break; }
+  }
+  if (moves.length === prefix.length) return;
+  state.ply = from;
+  state.variation = { from, moves, idx: prefix.length };
+  if (state.tab !== 'moves') setTab('moves');
+  renderMoves();
+  render();
+  const first = moves[prefix.length];
+  sound.playMove(first.san, first.captured);
+  moves.forEach((m) => analyseVar(m));
+}
+
+// "Show best": play the engine's line in place of the move on the board, ready to step through.
+function playBest(node) {
+  const ucis = node.bestLineUci?.length ? node.bestLineUci : [node.bestUci];
+  if (node.isVar) {
+    const v = state.variation;
+    playLineFrom(v.from, v.moves.slice(0, v.idx), node.fenBefore, ucis);
+  } else {
+    playLineFrom(node.ply - 1, [], node.fenBefore, ucis);
+  }
+}
+
+// "Engine line": continue from the move on the board with the engine's expected play.
+function playContinuation(node) {
+  if (node.isVar) {
+    const v = state.variation;
+    playLineFrom(v.from, v.moves.slice(0, v.idx + 1), node.fenAfter, node.nextLineUci);
+  } else {
+    playLineFrom(node.ply, [], node.fenAfter, node.nextLineUci);
+  }
+}
+
+function stepVar(idx, withSound = false) {
+  const v = state.variation;
+  const prevIdx = v.idx;
+  v.idx = Math.max(-1, Math.min(v.moves.length - 1, idx));
+  state.ply = v.from;
+  render();
+  if (withSound && Math.abs(v.idx - prevIdx) === 1) {
+    const vm = v.moves[Math.max(v.idx, prevIdx)];
+    sound.playMove(vm.san, vm.captured);
+  }
+  if (v.idx >= 0) analyseVar(v.moves[v.idx]);
+}
+
+function closeVariation() {
+  if (!state.variation) return;
+  state.variation = null;
+  renderMoves();
+  render();
+}
+
+function renderCoords() {
+  const white = state.orientation === 'white';
+  let html = '';
+  for (let i = 0; i < 8; i++) {
+    const rank = white ? 8 - i : i + 1;
+    const edgeFile = white ? 0 : 7;
+    html += `<span class="coord rank ${(edgeFile + rank - 1) % 2 === 0 ? 'on-dark' : 'on-light'}" style="top:${i * 12.5}%">${rank}</span>`;
+    const f = white ? i : 7 - i;
+    const edgeRank = white ? 0 : 7;
+    html += `<span class="coord file ${(f + edgeRank) % 2 === 0 ? 'on-dark' : 'on-light'}" style="left:${i * 12.5}%">${'abcdefgh'[f]}</span>`;
+  }
+  $('coords-layer').innerHTML = html;
+}
+
 function render({ still = false } = {}) {
   const r = state.review;
-  const m = currentMove();
-  const pos = r.positions[state.ply + 1];
-  const chess = new Chess(pos.fen);
+  const node = currentNode();
+  const fen = currentFen();
+  const chess = new Chess(fen);
   const inRetry = !!state.retry;
-  state.preview = false;
+  const turnColor = chess.turn() === 'w' ? 'white' : 'black';
   const config = {
-    fen: pos.fen,
+    fen,
     orientation: state.orientation,
-    turnColor: chess.turn() === 'w' ? 'white' : 'black',
-    lastMove: m ? [m.from, m.to] : undefined,
+    turnColor,
+    lastMove: node ? [node.from, node.to] : undefined,
     check: chess.inCheck(),
   };
-  // In retry mode showPuzzle() owns the movable config; passing cg.state.movable back in
-  // would wipe its dests (chessground clears dests before merging).
-  if (!inRetry) config.movable = { color: undefined, dests: new Map() };
+  // Pieces can always be moved to explore a line. In retry mode showPuzzle() owns the movable
+  // config; passing cg.state.movable back in would wipe its dests (chessground clears them first).
+  if (!inRetry) {
+    config.movable = {
+      free: false, color: chess.isGameOver() ? undefined : turnColor, dests: legalDests(fen),
+      showDests: true, events: { after: onBoardMove },
+    };
+  }
   cg.set(config);
   const shapes = [];
-  if (m && !inRetry && m.bestUci && !m.isBest && !['book', 'forced', 'best', 'brilliant', 'great'].includes(m.label)) {
-    shapes.push({ orig: m.bestUci.slice(0, 2), dest: m.bestUci.slice(2, 4), brush: 'green' });
+  if (node && !inRetry && !node.pending && node.bestUci && !node.isBest && !['book', 'forced', 'best', 'brilliant', 'great'].includes(node.label)) {
+    shapes.push({ orig: node.bestUci.slice(0, 2), dest: node.bestUci.slice(2, 4), brush: 'green' });
   }
   cg.setAutoShapes(shapes);
-  renderFx(inRetry ? null : m, { still });
-  renderEval(pos);
+  renderCoords();
+  renderFx(inRetry ? null : node, { still });
+  const evalPos = inVar() ? varMove().analysis?.after : r.positions[state.ply + 1];
+  if (evalPos) renderEval(evalPos);
   renderBars();
   updateMoveHighlight();
   updateGraphCursor();
@@ -524,10 +688,12 @@ function renderFx(m, { still = false, color } = {}) {
     const p = squarePos(sq);
     const el = document.createElement('div');
     el.className = 'tint' + (glow ? ' glow' : '') + (still ? ' still' : '');
-    el.style.cssText = `left:${p.left}%;top:${p.top}%;background:color-mix(in srgb, var(--c-${label}) ${sq === m.to ? 60 : 45}%, transparent)`;
+    const bg = label ? `color-mix(in srgb, var(--c-${label}) ${sq === m.to ? 60 : 45}%, transparent)` : 'rgba(255, 233, 80, .42)';
+    el.style.cssText = `left:${p.left}%;top:${p.top}%;background:${bg}`;
     if (still) el.style.animation = 'none';
     board.prepend(el);
   }
+  if (!label) return; // still being analysed
   const p = squarePos(m.to);
   const anim = still ? 'style="animation:none"' : '';
   fx.innerHTML = `<div class="sq-badge" style="left:${p.left}%;top:${p.top}%">${badge(label).replace('<span class', `<span ${anim} class`)}</div>` +
@@ -591,7 +757,7 @@ function material(fen) {
 function renderBars() {
   const r = state.review;
   const h = r.headers;
-  const fen = r.positions[state.ply + 1].fen;
+  const fen = currentFen();
   const toMove = fen.split(' ')[1];
   const mat = material(fen);
   const bar = (c) => {
@@ -623,19 +789,34 @@ function setTab(tab) {
 }
 
 // ---------- Move list ----------
+function varBlockHtml() {
+  const v = state.variation;
+  const chips = v.moves.map((vm, i) => {
+    const full = parseInt(vm.fenBefore.split(' ')[5], 10);
+    const num = vm.color === 'w' ? `${full}.` : i === 0 ? `${full}…` : '';
+    const mark = vm.analysis ? badge(vm.analysis.move.label) : vm.error ? '' : '<span class="spin"></span>';
+    return `<button class="vmv" data-vi="${i}">${num ? `<span class="num">${num}</span>` : ''}${mark}<span>${esc(vm.san)}</span></button>`;
+  }).join('');
+  return `<div class="var-block"><div class="var-moves">${chips}</div><button class="var-close" title="Back to the game (Esc)">✕</button></div>`;
+}
+
 function renderMoves() {
   const moves = state.review.moves;
-  let html = '';
+  const v = state.variation;
+  // The variation sits right under the row of the game move it branches from.
+  const varRow = v ? Math.floor(v.from / 2) : null;
+  let html = v && v.from < 0 ? varBlockHtml() : '';
   for (let i = 0; i < moves.length; i += 2) {
     const cell = (m) => (m ? `<button class="mv" data-ply="${m.ply}">${badge(m.label)}<span>${esc(m.san)}</span>${m.clock ? `<span class="clk">${esc(fmtClock(m.clock))}</span>` : ''}</button>` : '<span></span>');
     html += `<div class="move-row"><span class="move-no">${i / 2 + 1}.</span>${cell(moves[i])}${cell(moves[i + 1])}</div>`;
+    if (v && v.from >= 0 && i / 2 === varRow) html += varBlockHtml();
   }
   $('moves').innerHTML = html;
 }
 
 function updateMoveHighlight() {
-  document.querySelectorAll('.mv.on').forEach((el) => el.classList.remove('on'));
-  const el = document.querySelector(`.mv[data-ply="${state.ply}"]`);
+  document.querySelectorAll('.mv.on, .vmv.on').forEach((el) => el.classList.remove('on'));
+  const el = inVar() ? document.querySelector(`.vmv[data-vi="${state.variation.idx}"]`) : document.querySelector(`.mv[data-ply="${state.ply}"]`);
   if (!el || state.tab !== 'moves') return;
   el.classList.add('on');
   const box = $('panel-body');
@@ -748,22 +929,37 @@ function evalChip(ev) {
 }
 
 function renderCoach() {
-  const m = currentMove();
+  const m = currentNode();
   clearTimeout(state.explainTimer);
   state.abort?.abort();
   if (!m) return renderSummaryCoach();
-  const ev = state.review.positions[m.ply + 1].eval;
+  const back = m.isVar ? '<button class="chip-btn" id="var-back">Back to game</button>' : '';
+  const tag = m.isVar ? '<span class="bubble-var">Your line</span>' : '';
+  if (m.isVar && !m.vm.analysis) {
+    setBubble(`
+      <div class="bubble-head">${m.error ? '' : '<span class="spin"></span>'}<span class="bubble-title">${esc(m.san)}</span>${tag}</div>
+      <div class="bubble-text muted">${m.error ? "Couldn't analyze this move. Try again or go back to the game." : 'Checking this move with the engine…'}</div>
+      <div class="bubble-foot">${m.error ? '<button class="chip-btn" id="var-retry">Try again</button>' : ''}${back}</div>`);
+    $('var-back').onclick = closeVariation;
+    if (m.error) $('var-retry').onclick = () => { analyseVar(m.vm); render(); };
+    return;
+  }
+  const ev = m.isVar ? m.vm.analysis.after.eval : state.review.positions[m.ply + 1].eval;
   const showBest = !m.isBest && m.bestSan && !['book', 'forced'].includes(m.label);
   setBubble(`
-    <div class="bubble-head">${badge(m.label)}<span class="bubble-title txt-${m.label}">${titleFor(m)}</span>${evalChip(ev)}</div>
+    <div class="bubble-head">${badge(m.label)}<span class="bubble-title txt-${m.label}">${titleFor(m)}</span>${tag}${evalChip(ev)}</div>
     <div class="bubble-text" id="coach-text"></div>
     <div class="bubble-foot">
       ${showBest ? `<span class="best-line">Best was <b>${esc(m.bestSan)}</b></span><button class="chip-btn" id="show-best">Show best</button>` : ''}
+      ${!showBest && m.nextLineUci?.length ? '<button class="chip-btn" id="engine-line" title="Play the expected continuation">Engine line</button>' : ''}
+      ${back}
       <span class="ai-tag" id="ai-tag"></span>
     </div>`);
-  if (showBest) $('show-best').onclick = () => toggleBestPreview(m);
+  if (showBest) $('show-best').onclick = () => playBest(m);
+  if ($('engine-line')) $('engine-line').onclick = () => playContinuation(m);
+  if (m.isVar) $('var-back').onclick = closeVariation;
   const textEl = $('coach-text');
-  const key = `${state.review.moves.length}:${m.ply}:${m.fenAfter}`;
+  const key = m.isVar ? `var:${m.fenBefore}:${m.uci}` : `${state.review.moves.length}:${m.ply}:${m.fenAfter}`;
   if (state.explained.has(key)) {
     textEl.textContent = state.explained.get(key);
     return;
@@ -772,9 +968,14 @@ function renderCoach() {
   if (!state.coachOk || m.label === 'book' || m.label === 'forced') return;
   textEl.classList.add('muted');
   $('ai-tag').innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
+  const vm = m.vm;
+  const stillCurrent = () => !state.retry && (vm ? varMove() === vm : !inVar() && currentMove()?.ply === m.ply);
   // Wait a moment so scrolling through moves doesn't queue a request per move.
-  state.explainTimer = setTimeout(() => streamInto('/api/explain', { facts: m.facts, san: m.san }, textEl, key, () => currentMove() === m && !state.retry), 260);
+  state.explainTimer = setTimeout(() => streamInto('/api/explain', { facts: m.facts, san: m.san }, textEl, key, stillCurrent), 260);
 }
+
+// The model sometimes echoes a fact label ("Main reason: ...") at the start; drop it.
+const cleanCoach = (t) => t.replace(/^\s*(main reason|key point)[^:]*:\s*/i, '').trim();
 
 async function streamInto(url, body, el, key, stillCurrent) {
   const ctrl = new AbortController();
@@ -790,10 +991,10 @@ async function streamInto(url, body, el, key, stillCurrent) {
       text += decoder.decode(value, { stream: true });
       if (!stillCurrent()) return;
       el.classList.remove('muted');
-      el.innerHTML = esc(text) + '<span class="caret"></span>';
+      el.innerHTML = esc(cleanCoach(text)) + '<span class="caret"></span>';
       $('coach').classList.add('talking');
     }
-    text = text.trim();
+    text = cleanCoach(text);
     if (!stillCurrent()) return;
     el.textContent = text;
     $('coach').classList.remove('talking');
@@ -836,37 +1037,21 @@ function renderSummaryCoach() {
   }, textEl, key, () => state.ply === -1 && !state.retry);
 }
 
-// Animate the engine's best move on the board in place of the game move.
-async function toggleBestPreview(m) {
-  const btn = $('show-best');
-  if (state.preview) { render({ still: true }); return; }
-  stopPlay();
-  state.preview = true;
-  btn.textContent = 'Back to game';
-  const c = new Chess(m.fenBefore);
-  const best = c.move({ from: m.bestUci.slice(0, 2), to: m.bestUci.slice(2, 4), promotion: m.bestUci[4] || 'q' });
-  cg.setAutoShapes([]);
-  renderFx(null);
-  cg.set({ fen: m.fenBefore, lastMove: undefined, check: false });
-  await sleep(300);
-  if (!state.preview || currentMove() !== m) return;
-  cg.set({ fen: best.after, lastMove: [best.from, best.to], check: c.inCheck() });
-  sound.playMove(best.san, best.captured);
-  renderFx({ from: best.from, to: best.to, label: 'best' });
-}
-
 // ---------- Navigation ----------
+// Moves along the game line (leaving any variation, which stays listed until closed).
 function go(ply, { sound: withSound = false } = {}) {
   if (!state.review) return;
   const max = state.review.moves.length - 1;
   const prev = state.ply;
   const next = Math.max(-1, Math.min(max, ply));
-  if (next === prev && !state.preview) return;
+  const wasInVar = inVar();
+  if (state.variation) state.variation.idx = -1;
+  if (next === prev && !wasInVar) return;
   state.ply = next;
   if (prev === -1 && next >= 0 && state.tab === 'report') setTab('moves');
   if (next === -1 && prev !== -1) setTab('report');
   render();
-  if (withSound && Math.abs(next - prev) === 1) {
+  if (withSound && !wasInVar && Math.abs(next - prev) === 1) {
     const m = state.review.moves[Math.max(next, prev)];
     sound.playMove(m.san, m.captured);
     if (next > prev && m.label === 'brilliant') sound.play('brilliant');
@@ -876,6 +1061,13 @@ function go(ply, { sound: withSound = false } = {}) {
 function nav(action) {
   if (state.retry) return;
   if (action !== 'play') stopPlay();
+  // Inside a variation the arrows walk the variation; ← from its first move returns to the game.
+  if (inVar() && (action === 'prev' || action === 'next')) {
+    const v = state.variation;
+    if (action === 'next' && v.idx >= v.moves.length - 1) return;
+    stepVar(v.idx + (action === 'next' ? 1 : -1), true);
+    return;
+  }
   if (action === 'start') go(-1);
   else if (action === 'prev') go(state.ply - 1, { sound: true });
   else if (action === 'next') go(state.ply + 1, { sound: true });
@@ -890,12 +1082,15 @@ function renderPlayBtn() {
 function togglePlay() {
   if (state.retry || !state.review) return;
   if (state.playing) return stopPlay();
-  if (state.ply >= state.review.moves.length - 1) go(-1);
-  state.playing = setInterval(() => {
-    if (state.ply >= state.review.moves.length - 1) return stopPlay();
-    go(state.ply + 1, { sound: true });
-  }, 1100);
-  go(state.ply + 1, { sound: true });
+  // Plays through whichever line is on the board: the variation if you're in one, else the game.
+  const atEnd = () => (inVar() ? state.variation.idx >= state.variation.moves.length - 1 : state.ply >= state.review.moves.length - 1);
+  const step = () => (inVar() ? stepVar(state.variation.idx + 1, true) : go(state.ply + 1, { sound: true }));
+  if (atEnd()) {
+    if (inVar()) stepVar(-1);
+    else go(-1);
+  }
+  state.playing = setInterval(() => (atEnd() ? stopPlay() : step()), 1100);
+  step();
   renderPlayBtn();
 }
 
@@ -910,6 +1105,7 @@ function startRetry() {
   const r = state.review;
   if (!r) return;
   stopPlay();
+  if (state.variation) { state.variation = null; renderMoves(); }
   const list = r.moves.filter((m) => m.color === r.userColor && BAD.has(m.label)).map((m) => m.ply);
   if (!list.length) {
     setBubble(`<div class="bubble-head"><span class="badge lbl-best">${ICON.star}</span><span class="bubble-title">Nothing to retry</span></div><div class="bubble-text">You didn't make any inaccuracies, mistakes or blunders in this game. Nice!</div>`);
@@ -1068,8 +1264,12 @@ $('game-list').addEventListener('click', (e) => {
   if (el) analyze(state.games[+el.dataset.i]);
 });
 $('moves').addEventListener('click', (e) => {
+  if (state.retry) return;
+  const chip = e.target.closest('.vmv');
+  if (chip) { stopPlay(); stepVar(+chip.dataset.vi, true); return; }
+  if (e.target.closest('.var-close')) { stopPlay(); closeVariation(); return; }
   const el = e.target.closest('.mv');
-  if (el && !state.retry) { stopPlay(); go(+el.dataset.ply, { sound: true }); }
+  if (el) { stopPlay(); go(+el.dataset.ply, { sound: true }); }
 });
 $('tabs').addEventListener('click', (e) => {
   const b = e.target.closest('button');
@@ -1114,13 +1314,14 @@ graphWrap.addEventListener('mouseleave', () => {
 });
 
 document.addEventListener('keydown', (e) => {
-  if (e.target.matches('input, select, textarea')) return;
+  if (e.target.matches?.('input, select, textarea')) return;
   if (e.key === 'm' || e.key === 'M') { $('sound-btn').click(); return; }
   if ($('review').classList.contains('hidden')) return;
   const map = { ArrowLeft: 'prev', ArrowRight: 'next', Home: 'start', End: 'end' };
   if (map[e.key]) { e.preventDefault(); nav(map[e.key]); }
   else if (e.key === ' ') { e.preventDefault(); togglePlay(); }
   else if (e.key === 'f' || e.key === 'F') $('flip').click();
+  else if (e.key === 'Escape' && state.variation && !state.retry) closeVariation();
 });
 addEventListener('resize', () => {
   if (state.review) setTab(state.tab);

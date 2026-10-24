@@ -190,7 +190,9 @@ svg { display: block; }
 .clock.active { background: #ebe8e1; color: #1f1e1c; }
 
 /* Board colors */
-cg-board { background: repeating-conic-gradient(var(--sq-light) 0% 25%, var(--sq-dark) 0% 50%) 0 0 / 25% 25%; border-radius: 6px; }
+/* Conic quadrants run clockwise from 12 o'clock, so the top-left square of each 2x2 tile gets the
+   second color: light, as a8 (and h1 when flipped) must be. */
+cg-board { background: repeating-conic-gradient(var(--sq-dark) 0% 25%, var(--sq-light) 0% 50%) 0 0 / 25% 25%; border-radius: 6px; }
 cg-board square.move-dest { background: radial-gradient(rgba(20, 30, 10, .3) 21%, transparent 22%); }
 cg-board square.oc.move-dest { background: radial-gradient(transparent 0%, transparent 78%, rgba(20, 30, 10, .3) 79%); }
 cg-board square.selected { background-color: rgba(255, 255, 51, .45); }
@@ -205,6 +207,28 @@ cg-board piece.dragging { cursor: grabbing; }
 .cg-wrap.orientation-black coords.ranks coord:nth-child(even), .cg-wrap.orientation-black coords.files coord:nth-child(even) { color: var(--sq-light); }
 cg-container svg.cg-shapes g { animation: arrowIn .35s var(--ease-out); }
 @keyframes arrowIn { from { opacity: 0; } }
+
+/* Coordinates drawn inside the edge squares, like chess.com */
+.coords-layer { position: absolute; inset: 0; pointer-events: none; z-index: 4; font-weight: 700; font-size: clamp(9px, calc(var(--board) / 42), 15px); line-height: 1; user-select: none; }
+.coord { position: absolute; }
+.coord.rank { left: .45%; margin-top: .45%; }
+.coord.file { bottom: .55%; width: 12.5%; text-align: right; padding-right: .7%; }
+.coord.on-light { color: var(--sq-dark); }
+.coord.on-dark { color: var(--sq-light); }
+
+/* Variations in the move list */
+.var-block { display: flex; gap: 6px; align-items: flex-start; margin: 3px 4px 6px 36px; padding: 5px 6px 5px 8px; border-radius: 8px; background: #2b2a27; border-left: 3px solid var(--accent); animation: bubbleIn .2s var(--ease-out); }
+.var-moves { display: flex; flex-wrap: wrap; gap: 2px 3px; flex: 1; min-width: 0; }
+.vmv { display: inline-flex; align-items: center; gap: 5px; border: 0; background: none; padding: 3px 6px; border-radius: 5px; font-weight: 600; font-size: 13.5px; color: #d9d5ce; transition: background .15s; }
+.vmv:hover { background: rgba(255, 255, 255, .07); }
+.vmv.on { background: #4b4842; color: #fff; }
+.vmv .num { color: var(--faint); font-weight: 500; }
+.vmv .badge { width: 15px; height: 15px; font-size: 8.5px; }
+.spin { display: inline-block; width: 12px; height: 12px; border: 2px solid #6b675f; border-top-color: transparent; border-radius: 50%; animation: spin .8s linear infinite; flex: none; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.var-close { border: 0; background: none; color: var(--muted); padding: 3px 7px; border-radius: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.var-close:hover { background: var(--surface-3); color: var(--text); }
+.bubble-var { font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; color: #6f8a52; background: #e6efd9; padding: 2px 6px; border-radius: 5px; flex: none; }
 
 /* Move highlights and badges */
 .tint { position: absolute; width: 12.5%; height: 12.5%; pointer-events: none; animation: tintIn .25s ease both; }
