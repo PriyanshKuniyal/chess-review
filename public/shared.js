@@ -138,7 +138,8 @@ export function linkify(text, node) {
 }
 
 // The model sometimes echoes a fact label ("Main reason: ...") at the start; drop it.
-export const cleanCoach = (t) => t.replace(/^\s*(main reason|key point)[^:]*:\s*/i, '').trim();
+// A form feed from the server means "drop what came before" (the coach rewrote its answer).
+export const cleanCoach = (t) => t.slice(t.lastIndexOf('\f') + 1).replace(/^\s*(main reason|key point)[^:]*:\s*/i, '').trim();
 
 // Square position (percent from the top-left) for a given board orientation.
 export function squarePosFor(sq, orientation) {

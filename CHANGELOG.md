@@ -3,6 +3,16 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-10-24
+
+### Fixed
+- The coach could credit a move to the wrong side, e.g. call Black's better alternative "White's
+  counterplay". Every move it's told about now says whose move it is (Black's best move was f6,
+  White's best reply is Kd1), lines carry move numbers (16...f6 17.O-O), and each sentence is
+  checked before it's shown. If one credits a move to the wrong side, the coach rewrites the
+  explanation; if it's still wrong, you get the built-in explanation instead.
+- Saved reviews are re-analysed once so they pick up the corrected explanations.
+
 ## [1.4.0] - 2026-10-24
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "chess-review",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "Chess.com-style game review that runs on your own PC: Stockfish grades every move and a local AI coach explains it.",
   "type": "module",
   "main": "server.js",

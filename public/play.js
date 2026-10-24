@@ -524,7 +524,7 @@ async function analyseYourMove(m, pending) {
 // Detailed explanation from the AI coach (help: Lots).
 async function explainMore(m) {
   try {
-    const res = await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts: m.analysis.move.facts, san: m.san }) });
+    const res = await fetch('/api/explain', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ facts: m.analysis.move.facts, san: m.san, sides: m.analysis.move.sides, template: m.analysis.move.template }) });
     const text = cleanCoach(await res.text());
     if (!text || text.includes('[coach unavailable')) return;
     m.explanation = text;

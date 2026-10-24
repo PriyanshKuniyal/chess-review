@@ -159,9 +159,13 @@ const routes = {
   },
 
   'POST /api/explain': async (req, res) => {
-    const { facts, san } = await readBody(req);
+    const { facts, san, sides, template } = await readBody(req);
     if (!Array.isArray(facts) || !san) return json(res, 400, { error: 'Missing facts' });
-    await streamText(res, hash(JSON.stringify(facts)), (onTok, signal) => coach.explainMove(facts.slice(0, 30).map(String), String(san), onTok, signal));
+    const opts = {
+      sides: sides && typeof sides === 'object' ? Object.fromEntries(Object.entries(sides).slice(0, 40).filter(([, v]) => v === 'w' || v === 'b')) : null,
+      template: typeof template === 'string' ? template.slice(0, 1000) : '',
+    };
+    await streamText(res, hash(JSON.stringify([facts, opts])), (onTok, signal) => coach.explainMove(facts.slice(0, 30).map(String), String(san), onTok, signal, opts));
   },
 
   'POST /api/summary': async (req, res) => {

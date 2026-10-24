@@ -917,7 +917,7 @@ function renderCoach() {
   const vm = m.vm;
   const stillCurrent = () => !state.retry && (vm ? varMove() === vm : !inVar() && currentMove()?.ply === m.ply);
   // Wait a moment so scrolling through moves doesn't queue a request per move.
-  state.explainTimer = setTimeout(() => streamInto('/api/explain', { facts: m.facts, san: m.san }, textEl, key, stillCurrent, m), 260);
+  state.explainTimer = setTimeout(() => streamInto('/api/explain', { facts: m.facts, san: m.san, sides: m.sides, template: m.template }, textEl, key, stillCurrent, m), 260);
 }
 
 // ---------- Clickable ideas in the explanation ----------
