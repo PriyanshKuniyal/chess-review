@@ -96,8 +96,8 @@ function fitBoard() {
   if ($('puzzles').classList.contains('hidden')) return;
   const stage = $('pz-stage');
   let size = innerWidth > 900
-    ? Math.min(stage.clientWidth - 40 - 34, stage.clientHeight - 28 - 42 * 2 - 16)
-    : Math.min(innerWidth - 24 - 34, 680);
+    ? Math.min(stage.clientWidth - 40 - 44, stage.clientHeight - 28 - 42 * 2 - 16)
+    : Math.min(innerWidth - 24 - 44, 680);
   size = Math.max(256, Math.floor(size / 8) * 8);
   document.documentElement.style.setProperty('--board', `${size}px`);
   Z.cg?.redrawAll();

@@ -3,6 +3,21 @@
 All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.5.0] - 2026-10-25
+
+### Added
+- **Blue arrow for the engine's reply**: when you play your own moves off the game, a blue arrow
+  shows the best move for the side to move next, so you can keep exploring without asking for it.
+- **L-shaped arrows for knight moves**, like chess.com.
+
+### Changed
+- **New eval bar**: wider (it grows with the board), White's share slides smoothly to each new
+  evaluation while the number counts toward it, a tick marks equality, and the edge flashes in
+  the move's color on brilliant moves, great moves, misses, mistakes and blunders. A light sweeps
+  along the bar while the engine is still thinking about a move you played, and hovering it
+  says who is better ("+1.28: White is slightly better"). Play the coach uses the same bar.
+- Arrows are a little more opaque, so short ones stay visible under the move badges.
+
 ## [1.4.1] - 2026-10-24
 
 ### Fixed

@@ -34,9 +34,11 @@ Stockfish grades every move, and a local AI coach explains them in plain English
 - **Puzzles from your own mistakes**: every position where you went wrong in your recent games
   becomes a puzzle, with spaced repetition so they stick ([details](#puzzles-from-your-own-mistakes)).
 - **Analysis board**: drag any piece to try your own ideas. Each move you play is graded and
-  explained, and "Show best" / "Engine line" play the engine's lines so you can step through them.
-- **Feels like the real thing**: animated pieces, wooden move and capture sounds, an eval bar,
-  a clickable eval graph, best-move arrows, "Show best", autoplay and keyboard shortcuts.
+  explained, a blue arrow shows the engine's best reply so you can keep going, and "Show best" /
+  "Engine line" play the engine's lines so you can step through them.
+- **Feels like the real thing**: animated pieces, wooden move and capture sounds, an animated
+  eval bar that flashes on big moments, a clickable eval graph, best-move arrows (L-shaped for
+  knights), "Show best", autoplay and keyboard shortcuts.
 - **Private and free**: no account and no cloud. The only network calls fetch your public games
   from Chess.com or Lichess.
 

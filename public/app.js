@@ -3,7 +3,7 @@ import { Chess } from '/vendor/chess.js';
 import * as sound from '/sounds.js';
 import {
   $, esc, sleep, LABEL_ORDER, LABEL_NAME, BAD, RING, ICON, badge, api, legalDests, material, titleFor, evalChip,
-  linkSans, linkify, cleanCoach, squarePosFor, coordsHtml, pickPromotion,
+  linkSans, linkify, cleanCoach, squarePosFor, coordsHtml, pickPromotion, BRUSHES, arrow, setEvalBar,
 } from '/shared.js';
 
 
@@ -11,7 +11,7 @@ const state = {
   source: 'chesscom', lichessNext: null,
   user: '', games: [], depth: 18, timeFilter: '', review: null, ply: -1, orientation: 'white',
   explained: new Map(), abort: null, explainTimer: null, retry: null, coachModel: '', coachOk: false,
-  tab: 'report', playing: null, evalShown: 0, variation: null,
+  tab: 'report', playing: null, variation: null,
 };
 
 // ---------- Status, sound toggle, heartbeat ----------
@@ -381,11 +381,11 @@ function fitBoard() {
   const stage = $('stage');
   let size;
   if (innerWidth > 900) {
-    const w = stage.clientWidth - 40 - 34;
+    const w = stage.clientWidth - 40 - 44;
     const h = stage.clientHeight - 28 - 42 * 2 - 16;
     size = Math.min(w, h);
   } else {
-    size = Math.min(innerWidth - 24 - 34, 680);
+    size = Math.min(innerWidth - 24 - 44, 680);
   }
   size = Math.max(256, Math.floor(size / 8) * 8);
   const prev = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--board'), 10);
@@ -426,10 +426,7 @@ function openReview(review) {
       drawable: {
         enabled: true,
         visible: true,
-        brushes: {
-          green: { key: 'g', color: '#81b64c', opacity: 0.85, lineWidth: 11 },
-          blue: { key: 'b', color: '#5c9fe0', opacity: 0.8, lineWidth: 11 },
-        },
+        brushes: BRUSHES,
       },
     });
   }
@@ -633,13 +630,21 @@ function render({ still = false } = {}) {
   cg.set(config);
   const shapes = [];
   if (node && !inRetry && !node.pending && node.bestUci && !node.isBest && !['book', 'forced', 'best', 'brilliant', 'great'].includes(node.label)) {
-    shapes.push({ orig: node.bestUci.slice(0, 2), dest: node.bestUci.slice(2, 4), brush: 'green' });
+    shapes.push(arrow(node.fenBefore, node.bestUci, 'green', state.orientation));
+  }
+  // Off the game's moves, a blue arrow shows the engine's reply, so you can keep exploring.
+  if (node?.isVar && !node.pending && node.nextLineUci?.length && !chess.isGameOver()) {
+    shapes.push(arrow(fen, node.nextLineUci[0], 'blue', state.orientation));
   }
   cg.setAutoShapes(shapes);
   renderCoords();
   renderFx(inRetry ? null : node, { still });
-  const evalPos = inVar() ? varMove().analysis?.after : r.positions[state.ply + 1];
-  if (evalPos) renderEval(evalPos);
+  const vm = varMove();
+  const evalPos = vm ? vm.analysis?.after : r.positions[state.ply + 1];
+  const bar = $('eval-bar');
+  if (evalPos) setEvalBar(bar, evalPos, { flipped: state.orientation === 'black', label: inRetry ? null : node?.label, key: fen });
+  bar.classList.toggle('flipped', state.orientation === 'black');
+  bar.classList.toggle('thinking', !!vm && !evalPos && !vm.error);
   renderBars();
   updateMoveHighlight();
   updateGraphCursor();
@@ -673,32 +678,6 @@ function renderFx(m, { still = false, color } = {}) {
   const anim = still ? 'style="animation:none"' : '';
   fx.innerHTML = `<div class="sq-badge" style="left:${p.left}%;top:${p.top}%">${badge(label).replace('<span class', `<span ${anim} class`)}</div>` +
     (!still && RING.has(label) ? `<div class="ring" style="left:${p.left}%;top:${p.top}%;--ring:var(--c-${label})"></div>` : '');
-}
-
-function renderEval(pos) {
-  const flipped = state.orientation === 'black';
-  $('eval-bar').classList.toggle('flipped', flipped);
-  $('eval-fill').style.height = `${Math.max(3, Math.min(97, pos.win))}%`;
-  const label = $('eval-label');
-  const whiteAhead = !pos.eval.startsWith('-') && pos.eval !== '0-1';
-  label.className = 'eval-label ' + (whiteAhead !== flipped ? 'bottom' : 'top');
-  const score = pos.score;
-  if (score.mate != null) {
-    label.textContent = pos.eval.replace('-', '');
-    return;
-  }
-  // Count the number toward the new evaluation.
-  const from = state.evalShown;
-  const to = Math.abs(score.cp) / 100;
-  state.evalShown = to;
-  const t0 = performance.now();
-  const step = (now) => {
-    const k = Math.min(1, (now - t0) / 450);
-    const v = from + (to - from) * (1 - (1 - k) ** 3);
-    label.textContent = v >= 10 ? v.toFixed(0) : v.toFixed(1);
-    if (k < 1 && state.evalShown === to) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
 }
 
 function clockAt(color) {
@@ -1124,7 +1103,7 @@ function showPuzzle() {
     setRetryResult(`Hint: move the piece on ${m.bestUci.slice(0, 2)}.`, '');
   };
   $('rt-show').onclick = () => {
-    cg.setAutoShapes([{ orig: m.bestUci.slice(0, 2), dest: m.bestUci.slice(2, 4), brush: 'green' }]);
+    cg.setAutoShapes([arrow(m.fenBefore, m.bestUci, 'green', state.orientation)]);
     setRetryResult(`The best move was ${m.bestSan}.`, '');
   };
   $('rt-prev').onclick = () => { rt.idx--; showPuzzle(); };

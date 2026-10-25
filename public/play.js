@@ -3,7 +3,7 @@
 import { Chessground } from '/vendor/chessground.js';
 import { Chess } from '/vendor/chess.js';
 import * as sound from '/sounds.js';
-import { $, esc, sleep, badge, api, legalDests, material, titleFor, linkify, cleanCoach, squarePosFor, coordsHtml, pickPromotion, BAD } from '/shared.js';
+import { $, esc, sleep, badge, api, legalDests, material, titleFor, linkify, cleanCoach, squarePosFor, coordsHtml, pickPromotion, BAD, BRUSHES, arrow, setEvalBar } from '/shared.js';
 
 const store = {
   get: (k, d = null) => { try { const v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch { return d; } },
@@ -211,11 +211,7 @@ function ensureBoard() {
     drawable: {
       enabled: true,
       visible: true,
-      brushes: {
-        green: { key: 'g', color: '#81b64c', opacity: 0.85, lineWidth: 11 },
-        red: { key: 'r', color: '#dd3b31', opacity: 0.8, lineWidth: 11 },
-        blue: { key: 'b', color: '#5c9fe0', opacity: 0.8, lineWidth: 11 },
-      },
+      brushes: { ...BRUSHES, red: { key: 'r', color: '#dd3b31', opacity: 0.8, lineWidth: 11 } },
     },
   });
 }
@@ -224,8 +220,8 @@ function fitBoard() {
   if ($('play').classList.contains('hidden')) return;
   const stage = $('play-stage');
   let size = innerWidth > 900
-    ? Math.min(stage.clientWidth - 40 - 34, stage.clientHeight - 28 - 42 * 2 - 16)
-    : Math.min(innerWidth - 24 - 34, 680);
+    ? Math.min(stage.clientWidth - 40 - 44, stage.clientHeight - 28 - 42 * 2 - 16)
+    : Math.min(innerWidth - 24 - 44, 680);
   size = Math.max(256, Math.floor(size / 8) * 8);
   document.documentElement.style.setProperty('--board', `${size}px`);
   P.cg?.redrawAll();
@@ -314,14 +310,8 @@ function renderEval() {
   const bar = $('peval-bar');
   bar.style.visibility = P.showEval ? 'visible' : 'hidden';
   $('p-eval').classList.toggle('on', P.showEval);
-  const pos = [...g().moves].reverse().find((m) => m.after)?.after;
-  if (!pos) { $('peval-fill').style.height = '50%'; $('peval-label').textContent = ''; return; }
-  const flipped = P.orientation === 'black';
-  bar.classList.toggle('flipped', flipped);
-  $('peval-fill').style.height = `${Math.max(3, Math.min(97, pos.win))}%`;
-  const whiteAhead = !pos.eval.startsWith('-') && pos.eval !== '0-1';
-  $('peval-label').className = 'eval-label ' + (whiteAhead !== flipped ? 'bottom' : 'top');
-  $('peval-label').textContent = pos.eval.replace(/^[+-]/, '');
+  const m = [...g().moves].reverse().find((x) => x.after);
+  setEvalBar(bar, m?.after, { flipped: P.orientation === 'black', label: m?.analysis?.move?.label, key: m?.fenAfter });
 }
 
 // ---------- The coach's bubble ----------
@@ -609,7 +599,7 @@ async function hint() {
   const steps = [];
   if (h.threat) steps.push(() => { P.cg.setAutoShapes([{ orig: h.threat.from, dest: h.threat.to, brush: 'red' }]); return `Watch out: the coach ${esc(h.threat.text)}.`; });
   if (h.best) steps.push(() => { P.cg.setAutoShapes([{ orig: h.best.from, brush: 'green' }]); return `Look at your ${esc(h.best.piece)} on ${h.best.from}.`; });
-  if (h.best) steps.push(() => { P.cg.setAutoShapes([{ orig: h.best.from, dest: h.best.to, brush: 'green' }]); return `The best move is <b>${esc(h.best.san)}</b>.`; });
+  if (h.best) steps.push(() => { P.cg.setAutoShapes([arrow(fen, h.best.from + h.best.to, 'green', P.orientation)]); return `The best move is <b>${esc(h.best.san)}</b>.`; });
   if (!steps.length) return;
   const text = steps[Math.min(P.hintStep, steps.length - 1)]();
   P.hintStep++;

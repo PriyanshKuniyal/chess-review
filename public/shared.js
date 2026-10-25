@@ -88,6 +88,102 @@ export function evalChip(ev) {
   return `<span class="bubble-eval ${neg ? 'neg' : ''}">${esc(ev)}</span>`;
 }
 
+// Arrow colors: green for the move that should have been played, blue for the engine's next move.
+export const BRUSHES = {
+  green: { key: 'g', color: '#81b64c', opacity: 0.85, lineWidth: 11 },
+  blue: { key: 'b', color: '#4f9ee8', opacity: 0.9, lineWidth: 11 },
+};
+
+// An engine arrow for chessground. Knight moves get chess.com's L-shaped arrow (long leg first);
+// chessground only draws straight ones, so those are a custom SVG laid over the start square,
+// where (0,0)-(100,100) is that square. Its opacity matches the arrow layer's (style.css).
+export function arrow(fen, uci, brush, orientation) {
+  const orig = uci.slice(0, 2);
+  const dest = uci.slice(2, 4);
+  if (new Chess(fen).get(orig)?.type !== 'n') return { orig, dest, brush };
+  const flip = orientation === 'black' ? -1 : 1;
+  const dx = (dest.charCodeAt(0) - orig.charCodeAt(0)) * flip * 100;
+  const dy = (orig.charCodeAt(1) - dest.charCodeAt(1)) * flip * 100;
+  const b = BRUSHES[brush];
+  // Same proportions as chessground's arrows: line 11/64 of a square, head 3x4 line widths.
+  const w = (b.lineWidth / 64) * 100;
+  const corner = Math.abs(dy) > Math.abs(dx) ? [50, 50 + dy] : [50 + dx, 50];
+  const tip = [50 + dx, 50 + dy];
+  const ux = Math.sign(tip[0] - corner[0]);
+  const uy = Math.sign(tip[1] - corner[1]);
+  const base = [tip[0] - ux * 3 * w, tip[1] - uy * 3 * w];
+  const head = [[base[0] + uy * 2 * w, base[1] - ux * 2 * w], tip, [base[0] - uy * 2 * w, base[1] + ux * 2 * w]];
+  const html = `<g opacity="${0.75 * b.opacity}" fill="${b.color}" stroke="${b.color}">`
+    + `<path d="M50 50 L${corner.join(' ')} L${base.join(' ')}" fill="none" stroke-width="${w}" stroke-linejoin="miter" stroke-linecap="round"/>`
+    + `<polygon points="${head.map((p) => p.join(',')).join(' ')}" stroke="none"/></g>`;
+  return { orig, dest, customSvg: { html, center: 'orig' } };
+}
+
+// Moves worth flashing the eval bar for: the moments a review is about.
+const SWING = new Set(['brilliant', 'great', 'miss', 'mistake', 'blunder']);
+
+function describeEval(pos) {
+  const { score } = pos;
+  if (score.mate === 0) return pos.eval === '1-0' ? 'White has delivered checkmate' : 'Black has delivered checkmate';
+  if (score.mate != null) return `${score.mate > 0 ? 'White' : 'Black'} can force checkmate in ${Math.abs(score.mate)}`;
+  const edge = Math.abs(pos.win - 50);
+  const side = pos.win >= 50 ? 'White' : 'Black';
+  const words = edge < 5 ? 'the position is equal' : edge < 15 ? `${side} is slightly better` : edge < 35 ? `${side} is better` : `${side} is winning`;
+  return `${pos.eval}: ${words}`;
+}
+
+// The eval bar beside the board, like chess.com's. White's share slides to the new evaluation, the
+// number counts toward it, and a big moment flashes the edge in the move's color. `pos` is
+// { score, eval, win } from White's side; `key` identifies the position, so re-rendering the same
+// one doesn't replay the effects; `thinking` shimmers the bar while the engine works.
+export function setEvalBar(bar, pos, { flipped = false, label = null, key = null, thinking = false } = {}) {
+  const fill = bar.querySelector('.eval-fill');
+  const text = bar.querySelector('.eval-label');
+  bar.classList.toggle('flipped', flipped);
+  bar.classList.toggle('thinking', thinking);
+  if (!pos) {
+    fill.style.transform = `translateY(${flipped ? -50 : 50}%)`;
+    text.textContent = '';
+    bar.removeAttribute('title');
+    bar.evalShown = 0;
+    return;
+  }
+  const whiteAhead = !pos.eval.startsWith('-') && pos.eval !== '0-1';
+  const mate = pos.score.mate != null;
+  // A forced mate fills the bar; otherwise a sliver of the losing side always shows.
+  const white = mate ? (whiteAhead ? 100 : 0) : Math.max(4, Math.min(96, pos.win));
+  fill.style.transform = `translateY(${(flipped ? -1 : 1) * (100 - white)}%)`;
+  text.className = 'eval-label ' + (whiteAhead !== flipped ? 'bottom' : 'top') + (whiteAhead ? ' on-white' : ' on-black');
+  bar.title = describeEval(pos);
+
+  const fresh = key == null || bar.evalKey !== key;
+  bar.evalKey = key;
+  if (fresh && SWING.has(label)) {
+    bar.style.setProperty('--swing', `var(--c-${label})`);
+    bar.classList.remove('swing');
+    void bar.offsetWidth; // restart the animation
+    bar.classList.add('swing');
+  }
+  if (mate) {
+    text.textContent = pos.eval.replace('-', '');
+    bar.evalShown = 0;
+    return;
+  }
+  // Count the number toward the new evaluation.
+  const from = bar.evalShown || 0;
+  const to = Math.abs(pos.score.cp) / 100;
+  const fmt = (v) => (v >= 10 ? v.toFixed(0) : v.toFixed(1));
+  if (!fresh || from === to) { text.textContent = fmt(to); return; }
+  bar.evalShown = to;
+  const t0 = performance.now();
+  const step = (now) => {
+    const k = Math.min(1, (now - t0) / 700);
+    text.textContent = fmt(from + (to - from) * (1 - (1 - k) ** 3));
+    if (k < 1 && bar.evalShown === to) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
 export function linkSans(node, link) {
   link.sans ||= (() => {
     const c = new Chess(link.base === 'after' ? node.fenAfter : node.fenBefore);
